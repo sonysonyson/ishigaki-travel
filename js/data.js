@@ -53,7 +53,7 @@ window.TIP_FIELDS = [
  * → 사용자가 직접 수정하지 않은 샘플 TIP 은 다음 접속 때 자동으로 최신화됨.
  * 키는 일정 순번(demo-N, 아래 rows 배열 순서와 동일).
  */
-window.DEMO_TIPS_REV = 2;
+window.DEMO_TIPS_REV = 3;
 window.DEMO_TIPS_UPDATED = '2026-10-12';
 window.MAX_PARKING_SPOTS = 5;
 
@@ -64,7 +64,6 @@ const PORT_LOT_FEE = '첫 1시간 ¥100 → 이후 30분 ¥50 / 야간(20~08시)
 const PORT_LOT_MAX = '설정 없음 · 17시 입고→다음 날 9시 출고 ≈ ¥1,000 (24시간 꽉 채우면 ≈ ¥1,800)';
 window.DEMO_TIPS = {
   'demo-1': {
-    warning: '일부 자료에는 인천→이시가키 정기편이 09:15 출발로 표기됨 → e-티켓의 출발 시각을 다시 확인',
     reserve: '국제선 일반 규정: 카운터 출발 60분 전 마감, 온라인 체크인 출발 90분 전 마감 → 2시간 전 도착 권장',
     prepare: '여권, e-티켓, Visit Japan Web 입국·세관 QR 미리 등록',
     tips: '위탁 수하물 한도는 운임별로 다름(일본 노선 일반 15kg) — 예약 운임 규정 확인\n보조배터리는 기내 반입만 가능',
