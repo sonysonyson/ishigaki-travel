@@ -6,19 +6,39 @@
   const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
   const $ = (id) => document.getElementById(id);
 
+  // 이전 샘플 메모 중 정보가 바뀐 것 (사용자가 고치지 않았다면 새 메모로 교체)
+  const OUTDATED_DEMO_MEMOS = [
+    '야키니쿠 킨조 등 이시가키규 전문점. 주말이라 사전 예약 권장',
+    '북부 드라이브 길목의 소바 맛집. 대기 있을 수 있음',
+  ];
+
   let plan = load();
   let currentDay = loadDay();
   let selectedCategory = 'TOUR';
 
   // ---------- 상태 저장 ----------
   function load() {
+    let saved = null;
     try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      if (saved && Array.isArray(saved.schedules)) return saved;
+      saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
     } catch (e) {
       /* 손상된 데이터는 샘플로 대체 */
     }
-    return window.createDemoPlan();
+    // 동기화 오류가 저장 데이터를 샘플로 덮어쓰지 않도록 try 밖에서 처리
+    return saved && Array.isArray(saved.schedules) ? syncDemoTips(saved) : window.createDemoPlan();
+  }
+
+  // 샘플 TIP 최신화: 사용자가 직접 수정·삭제하지 않은 샘플 TIP 은 data.js 의 최신 내용으로 교체
+  function syncDemoTips(saved) {
+    const demo = new Map(window.createDemoPlan().schedules.map((s) => [s.id, s]));
+    saved.schedules.forEach((s) => {
+      const d = demo.get(s.id);
+      if (!d) return;
+      if (OUTDATED_DEMO_MEMOS.includes(s.memo)) s.memo = d.memo;
+      if (!d.tip || s.tipDeleted) return;
+      if (!s.tip || (s.tip.source === 'demo' && s.tip.updatedAt < d.tip.updatedAt)) s.tip = d.tip;
+    });
+    return saved;
   }
 
   function loadDay() {
@@ -139,6 +159,7 @@
             <div class="card__meta">
               <time class="card__time">${formatTime(s.time)}</time>
               <span class="tag tag--${s.category}">${cat.icon} ${cat.label}</span>
+              ${tipChip(s)}
               ${s.recommended ? '<span class="tag tag--rec">추천</span>' : ''}
             </div>
             <h3 class="card__title">${escapeHtml(s.title)}</h3>
@@ -273,6 +294,8 @@
                   .map(
                     (s) =>
                       `<li class="${s.isCompleted ? 'is-done' : ''}"><span class="summary-time">${s.time}</span>${
+                        s.tip?.warning ? '<span title="TIP 주의사항 있음">⚠️</span> ' : ''
+                      }${
                         window.CATEGORIES[s.category]?.icon ?? ''
                       } ${escapeHtml(s.title)}</li>`
                   )
@@ -286,6 +309,201 @@
     html =
       `<p class="summary-total">총 ${all}개 일정 · 완료 ${done}개${total ? ` · 예상 비용 합계 ${formatCost(total)}` : ''}</p>` + html;
     $('summaryBody').innerHTML = html;
+  }
+
+  // ---------- TIP 레이어 팝업 ----------
+  const TIP_PLACEHOLDERS = {
+    warning: '예: 화요일 휴무 가능성 — 전화로 확인',
+    hours: '예: 11:00~15:00 / 17:30~21:00 (LO 20:30)',
+    closed: '예: 수요일, 부정기 휴무',
+    price: '예: 어른 1,200엔 / 어린이 600엔',
+    reserve: '예: 전화 예약 필수, 1개월 전부터 접수',
+    parking: '예: 무료 주차장 20대',
+    payment: '예: 현금만 가능 / 카드·PayPay 가능',
+    prepare: '예: 수영복, 수건, 멀미약',
+    tips: '자유롭게 메모 (줄바꿈 가능)',
+    address: '예: 沖縄県石垣市… (지도 링크 자동 생성)',
+    mapcode: '예: 366 123 456*78 (렌터카 내비 입력용)',
+    phone: '예: 0980-00-0000 (내비 전화번호 검색에도 사용)',
+    url: '공식 사이트·예약 링크 (여러 개면 줄바꿈)',
+  };
+  const TIP_SINGLE_LINE = ['address', 'mapcode', 'phone'];
+  const STALE_DAYS = 30;
+  let tipItemId = null;
+
+  const hasTip = (tip) => !!tip && window.TIP_FIELDS.some((f) => tip[f.key]);
+  const tipItem = () => plan.schedules.find((s) => s.id === tipItemId);
+  const today = () => toYmd(new Date());
+  const daysSince = (ymd) => Math.round((parseDate(today()) - parseDate(ymd)) / 86400000);
+
+  function tipChip(s) {
+    if (!hasTip(s.tip)) return '<button type="button" class="tip-chip tip-chip--empty" data-action="tip">+ TIP</button>';
+    const warn = !!s.tip.warning;
+    return `<button type="button" class="tip-chip${warn ? ' tip-chip--warn' : ''}" data-action="tip"
+      aria-label="TIP 보기${warn ? ' (주의사항 있음)' : ''}">${warn ? '⚠️' : '💡'} TIP</button>`;
+  }
+
+  function searchUrl(item) {
+    const keyword = item.title.replace(/^(아침|점심|저녁)\s*:\s*/, '').replace(/[^\p{L}\p{N}\s·&()]/gu, '').trim();
+    return `https://www.google.com/search?q=${encodeURIComponent(`${keyword} 이시가키`)}`;
+  }
+
+  function tipValueHtml(key, value) {
+    const text = escapeHtml(value);
+    if (key === 'phone') return `<a href="tel:${value.replace(/[^\d+]/g, '')}">${text}</a>`;
+    if (key === 'address') {
+      const map = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`;
+      return `${text} <a class="tip-link" href="${map}" target="_blank" rel="noopener">지도 열기 ↗</a>`;
+    }
+    if (key === 'url') {
+      return value
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((u) =>
+          /^https?:\/\//.test(u)
+            ? `<a href="${escapeHtml(u)}" target="_blank" rel="noopener">${escapeHtml(u.replace(/^https?:\/\//, ''))} ↗</a>`
+            : escapeHtml(u)
+        )
+        .join('<br>');
+    }
+    return text;
+  }
+
+  function renderTipView() {
+    const item = tipItem();
+    const tip = item.tip;
+    $('tipTitle').textContent = item.title;
+    $('btnTipEdit').textContent = hasTip(tip) ? '수정' : '작성';
+    $('btnTipDelete').hidden = !hasTip(tip);
+
+    if (!hasTip(tip)) {
+      $('tipView').innerHTML = `
+        <div class="tip-empty">
+          <p>아직 등록된 TIP이 없습니다.</p>
+          <p class="muted">휴무일·영업시간·주차·준비물 등을 적어두면 여행 중에 바로 꺼내볼 수 있어요.</p>
+          <div class="tip-empty__actions">
+            <button type="button" class="btn btn--primary" data-tip="edit">TIP 작성하기</button>
+            <a class="btn btn--ghost" href="${searchUrl(item)}" target="_blank" rel="noopener">🔎 정보 검색</a>
+          </div>
+        </div>`;
+      return;
+    }
+
+    const rows = window.TIP_FIELDS.filter((f) => tip[f.key])
+      .map(
+        (f) => `
+        <div class="tip-row${f.key === 'warning' ? ' tip-row--warn' : ''}">
+          <dt><span aria-hidden="true">${f.icon}</span> ${f.label}</dt>
+          <dd>${tipValueHtml(f.key, tip[f.key])}</dd>
+        </div>`
+      )
+      .join('');
+    const age = daysSince(tip.updatedAt);
+    const stale = age > STALE_DAYS;
+    $('tipView').innerHTML = `
+      <dl class="tip-list">${rows}</dl>
+      <div class="tip-foot${stale ? ' is-stale' : ''}">
+        <p>정보 확인일 <strong>${tip.updatedAt}</strong> (${age <= 0 ? '오늘' : `${age}일 전`})${
+          tip.source === 'demo' ? ' · 샘플 정보' : ''
+        }${stale ? ' · 출발 전 다시 확인하세요' : ''}</p>
+        <div class="tip-foot__actions">
+          <a class="btn-sm" href="${searchUrl(item)}" target="_blank" rel="noopener">🔎 최신 정보 검색</a>
+          <button type="button" class="btn-sm" data-tip="verify">✓ 오늘 확인함</button>
+        </div>
+      </div>`;
+  }
+
+  function renderTipForm() {
+    const tip = tipItem().tip || {};
+    $('tipFields').innerHTML = window.TIP_FIELDS.map((f) => {
+      const id = `tip-${f.key}`;
+      const value = escapeHtml(tip[f.key] ?? '');
+      const input = TIP_SINGLE_LINE.includes(f.key)
+        ? `<input type="text" id="${id}" name="${f.key}" value="${value}" placeholder="${TIP_PLACEHOLDERS[f.key]}" />`
+        : `<textarea id="${id}" name="${f.key}" rows="${f.key === 'tips' ? 3 : 1}" placeholder="${TIP_PLACEHOLDERS[f.key]}">${value}</textarea>`;
+      return `<label class="field"><span class="field__label">${f.icon} ${f.label}</span>${input}</label>`;
+    }).join('');
+    $('tipFields').querySelectorAll('textarea').forEach(autosize);
+  }
+
+  // 내용 길이에 맞춰 textarea 높이 조절 (긴 기존 TIP 이 잘리지 않도록)
+  function autosize(el) {
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight + 2}px`;
+  }
+
+  function setTipMode(mode) {
+    const editing = mode === 'edit';
+    $('tipView').hidden = editing;
+    $('tipForm').hidden = !editing;
+    $('btnTipEdit').hidden = editing;
+    if (editing) {
+      $('btnTipDelete').hidden = true;
+      renderTipForm(); // 폼이 보이는 상태에서 렌더해야 autosize 높이 계산이 맞음
+      $('tipFields').querySelector('textarea, input')?.focus();
+    } else {
+      renderTipView();
+    }
+  }
+
+  function openTip(item) {
+    tipItemId = item.id;
+    setTipMode('view');
+    $('tipDialog').showModal();
+    $('tipDialog').querySelector('.dialog__body').scrollTop = 0;
+  }
+
+  function onTipSubmit(e) {
+    e.preventDefault();
+    const item = tipItem();
+    const tip = {};
+    window.TIP_FIELDS.forEach((f) => {
+      const v = $(`tip-${f.key}`).value.trim();
+      if (v) tip[f.key] = v;
+    });
+    if (!hasTip(tip)) {
+      // 모든 칸을 비우고 저장하면 삭제로 처리
+      if (hasTip(item.tip)) deleteTip(false);
+      setTipMode('view');
+      return;
+    }
+    item.tip = { ...tip, updatedAt: today(), source: 'user' };
+    delete item.tipDeleted;
+    save();
+    setTipMode('view');
+    renderTimeline();
+    toast('TIP을 저장했습니다.');
+  }
+
+  function deleteTip(ask = true) {
+    const item = tipItem();
+    if (ask && !confirm(`'${item.title}' 의 TIP을 삭제할까요?`)) return;
+    delete item.tip;
+    item.tipDeleted = true; // 샘플 TIP 자동 복원 방지
+    save();
+    renderTipView();
+    renderTimeline();
+    toast('TIP을 삭제했습니다.');
+  }
+
+  function bindTipEvents() {
+    const dialog = $('tipDialog');
+    $('btnTipEdit').addEventListener('click', () => setTipMode('edit'));
+    $('btnTipDelete').addEventListener('click', () => deleteTip());
+    $('btnTipCancel').addEventListener('click', () => setTipMode('view'));
+    $('tipForm').addEventListener('submit', onTipSubmit);
+    $('tipFields').addEventListener('input', (e) => e.target.matches('textarea') && autosize(e.target));
+    dialog.addEventListener('click', (e) => {
+      if (e.target === dialog || e.target.closest('[data-close]')) return dialog.close();
+      const action = e.target.closest('[data-tip]')?.dataset.tip;
+      if (action === 'edit') setTipMode('edit');
+      if (action === 'verify') {
+        tipItem().tip.updatedAt = today();
+        save();
+        renderTipView();
+        toast('정보 확인일을 오늘로 갱신했습니다.');
+      }
+    });
   }
 
   // ---------- 이벤트 ----------
@@ -327,6 +545,8 @@
         save();
         renderTimeline();
         toast('일정을 삭제했습니다.');
+      } else if (action === 'tip') {
+        openTip(item);
       } else if (action === 'edit') {
         fillForm(item);
       }
@@ -389,6 +609,7 @@
 
   // ---------- 초기화 ----------
   bindEvents();
+  bindTipEvents();
   resetForm();
   render();
   save();

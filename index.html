@@ -112,6 +112,29 @@
     <div id="summaryBody" class="dialog__body"></div>
   </dialog>
 
+  <!-- 일정 TIP 레이어 팝업 -->
+  <dialog id="tipDialog" class="dialog tip-dialog" aria-labelledby="tipTitle">
+    <div class="dialog__head">
+      <div class="tip-dialog__heading">
+        <span class="tip-dialog__eyebrow">💡 TIP</span>
+        <h2 id="tipTitle">일정 TIP</h2>
+      </div>
+      <div class="tip-dialog__tools">
+        <button type="button" id="btnTipEdit" class="btn-sm">수정</button>
+        <button type="button" id="btnTipDelete" class="btn-sm btn-sm--danger">삭제</button>
+        <button type="button" class="icon-btn" data-close aria-label="닫기">✕</button>
+      </div>
+    </div>
+    <div id="tipView" class="dialog__body"></div>
+    <form id="tipForm" class="dialog__body tip-form" hidden novalidate>
+      <div id="tipFields"></div>
+      <div class="form-actions">
+        <button type="button" id="btnTipCancel" class="btn btn--ghost">취소</button>
+        <button type="submit" class="btn btn--primary">TIP 저장</button>
+      </div>
+    </form>
+  </dialog>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="js/data.js"></script>

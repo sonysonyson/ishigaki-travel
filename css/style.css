@@ -484,3 +484,108 @@ h1, h2, h3, p { margin: 0; }
   .card__body { padding-right: 92px; }
   .card__meta { padding-right: 0; }
 }
+
+/* ---------- TIP 칩 (카드) ---------- */
+.tip-chip {
+  border: 1px solid #f1dfa9;
+  background: #fff8e3;
+  color: #9a7a2b;
+  border-radius: 999px;
+  padding: 0 9px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.6;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.tip-chip:hover { background: #fff1c7; box-shadow: 0 2px 8px rgba(214, 178, 84, 0.25); }
+.tip-chip--warn { border-color: #f3c2b8; background: #fdeee9; color: #b35d4b; }
+.tip-chip--warn:hover { background: #fbe0d8; box-shadow: 0 2px 8px rgba(215, 122, 114, 0.25); }
+.tip-chip--empty { border-style: dashed; border-color: #d3e3e3; background: transparent; color: #9fb3b7; font-weight: 600; opacity: 0; }
+.card:hover .tip-chip--empty,
+.tip-chip--empty:focus-visible { opacity: 1; }
+@media (hover: none) { .tip-chip--empty { opacity: 0.8; } }
+
+/* ---------- TIP 레이어 팝업 ---------- */
+.tip-dialog { width: min(520px, calc(100vw - 32px)); }
+.tip-dialog[open] { animation: float-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
+@keyframes float-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.tip-dialog .dialog__head {
+  align-items: flex-start;
+  gap: 12px;
+  background: linear-gradient(180deg, #eef8f8, #ffffff);
+  z-index: 1;
+}
+.tip-dialog__heading { min-width: 0; }
+.tip-dialog__eyebrow { font-size: 0.72rem; font-weight: 700; color: #9a7a2b; letter-spacing: 0.04em; }
+.tip-dialog__heading h2 { font-size: 1.05rem; word-break: keep-all; overflow-wrap: anywhere; margin-top: 2px; }
+.tip-dialog__tools { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.tip-dialog__tools .icon-btn { margin-left: 2px; }
+
+.tip-list { margin: 8px 0 0; }
+.tip-row {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 10px;
+  padding: 11px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.tip-row:last-child { border-bottom: 0; }
+.tip-row dt { font-size: 0.8rem; font-weight: 600; color: #557880; }
+.tip-row dd { margin: 0; font-size: 0.88rem; white-space: pre-line; word-break: keep-all; overflow-wrap: anywhere; }
+.tip-row dd a { color: var(--primary-dark); font-weight: 600; text-decoration: none; }
+.tip-row dd a:hover { text-decoration: underline; }
+.tip-row--warn {
+  margin: 4px 0 6px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: #fdf0eb;
+}
+.tip-row--warn dt { color: #b35d4b; }
+.tip-row--warn dd { color: #7a3f33; }
+.tip-link { font-size: 0.78rem; white-space: nowrap; }
+
+.tip-foot {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #eef7f7, #f7f3ea);
+  font-size: 0.8rem;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tip-foot strong { color: var(--text); font-weight: 600; }
+.tip-foot.is-stale { background: #fdf3e6; color: #a06a2c; }
+.tip-foot__actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.tip-foot__actions .btn-sm { text-decoration: none; display: inline-block; }
+
+.tip-empty { text-align: center; padding: 26px 8px 14px; }
+.tip-empty p:first-child { font-weight: 600; margin-bottom: 4px; }
+.tip-empty__actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+.tip-empty__actions .btn { text-decoration: none; }
+
+.tip-form { padding-top: 16px; }
+.tip-form .field { margin-bottom: 12px; }
+.tip-form .form-actions { position: sticky; bottom: 0; padding: 12px 0 2px; background: linear-gradient(180deg, rgba(255, 255, 255, 0), #fff 30%); }
+
+@media (max-width: 899px) {
+  .tip-dialog {
+    width: 100%;
+    max-width: 100%;
+    max-height: 86vh;
+    margin: auto 0 0;
+    border-radius: 24px 24px 0 0;
+  }
+  .tip-dialog[open] { animation-name: sheet-up; }
+  @keyframes sheet-up {
+    from { transform: translateY(40px); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
+  .tip-row { grid-template-columns: 1fr; gap: 2px; }
+}
+.tip-form textarea { resize: none; overflow: hidden; }
