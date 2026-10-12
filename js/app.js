@@ -6,11 +6,15 @@
   const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
   const $ = (id) => document.getElementById(id);
 
-  // 이전 샘플 메모 중 정보가 바뀐 것 (사용자가 고치지 않았다면 새 메모로 교체)
-  const OUTDATED_DEMO_MEMOS = [
-    '야키니쿠 킨조 등 이시가키규 전문점. 주말이라 사전 예약 권장',
-    '북부 드라이브 길목의 소바 맛집. 대기 있을 수 있음',
-  ];
+  // 이전 샘플의 제목·메모 중 정보가 바뀐 것 (사용자가 고치지 않았다면 새 샘플 값으로 교체)
+  const OUTDATED_DEMO_TEXT = {
+    title: ['숙소 체크인 (4박 5일)', '숙소 체크아웃'],
+    memo: [
+      '야키니쿠 킨조 등 이시가키규 전문점. 주말이라 사전 예약 권장',
+      '북부 드라이브 길목의 소바 맛집. 대기 있을 수 있음',
+      '조식 옵션 없음 → 아침거리 별도 준비',
+    ],
+  };
 
   let plan = load();
   let currentDay = loadDay();
@@ -34,9 +38,12 @@
     saved.schedules.forEach((s) => {
       const d = demo.get(s.id);
       if (!d) return;
-      if (OUTDATED_DEMO_MEMOS.includes(s.memo)) s.memo = d.memo;
+      Object.entries(OUTDATED_DEMO_TEXT).forEach(([field, olds]) => {
+        if (olds.includes(s[field])) s[field] = d[field];
+      });
+      if (s.id === 'demo-31' && s.memo === '') s.memo = d.memo; // 체크아웃 메모는 원래 비어 있었음
       if (!d.tip || s.tipDeleted) return;
-      if (!s.tip || (s.tip.source === 'demo' && s.tip.updatedAt < d.tip.updatedAt)) s.tip = d.tip;
+      if (!s.tip || (s.tip.source === 'demo' && (s.tip.rev || 1) < d.tip.rev)) s.tip = d.tip;
     });
     return saved;
   }
@@ -331,7 +338,11 @@
   const STALE_DAYS = 30;
   let tipItemId = null;
 
-  const hasTip = (tip) => !!tip && window.TIP_FIELDS.some((f) => tip[f.key]);
+  const PLACE_CATEGORIES = ['FOOD', 'TOUR', 'HOTEL']; // 맵코드 입력을 권하는 일정
+  const isHttp = (u) => /^https?:\/\//.test(u || '');
+  const gmapSearch = (q) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+
+  const hasTip = (tip) => !!tip && (window.TIP_FIELDS.some((f) => tip[f.key]) || tip.parkingSpots?.length > 0);
   const tipItem = () => plan.schedules.find((s) => s.id === tipItemId);
   const today = () => toYmd(new Date());
   const daysSince = (ymd) => Math.round((parseDate(today()) - parseDate(ymd)) / 86400000);
@@ -343,14 +354,34 @@
       aria-label="TIP 보기${warn ? ' (주의사항 있음)' : ''}">${warn ? '⚠️' : '💡'} TIP</button>`;
   }
 
+  function titleKeyword(item) {
+    return item.title.replace(/^(아침|점심|저녁)\s*:\s*/, '').replace(/[^\p{L}\p{N}\s·&()]/gu, '').trim();
+  }
+
   function searchUrl(item) {
-    const keyword = item.title.replace(/^(아침|점심|저녁)\s*:\s*/, '').replace(/[^\p{L}\p{N}\s·&()]/gu, '').trim();
-    return `https://www.google.com/search?q=${encodeURIComponent(`${keyword} 이시가키`)}`;
+    return `https://www.google.com/search?q=${encodeURIComponent(`${titleKeyword(item)} 이시가키`)}`;
+  }
+
+  // 맵코드 검색: 일본어 주소가 있으면 주소로, 없으면 일정 제목으로
+  function mapcodeSearchUrl(item) {
+    const base = item.tip?.address?.replace(/\s*\(.*\)\s*$/, '') || `${titleKeyword(item)} 石垣島`;
+    return `https://www.google.com/search?q=${encodeURIComponent(`${base} マップコード`)}`;
+  }
+
+  function needsMapcode(item) {
+    return !item.tip?.mapcode && (PLACE_CATEGORIES.includes(item.category) || !!item.tip?.address);
   }
 
   function tipValueHtml(key, value) {
     const text = escapeHtml(value);
     if (key === 'phone') return `<a href="tel:${value.replace(/[^\d+]/g, '')}">${text}</a>`;
+    if (key === 'mapcode') {
+      // 문장 속 맵코드(예: 366 558 349*76)마다 눌러서 복사하는 칩으로 표시
+      return text.replace(
+        /\d{3,4}\s?\d{3}\s?\d{3}(?:\*\d{1,2})?/g,
+        (code) => `<button type="button" class="mapcode" data-tip="copy" data-value="${code}" title="눌러서 복사">${code} ⧉</button>`
+      );
+    }
     if (key === 'address') {
       const map = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`;
       return `${text} <a class="tip-link" href="${map}" target="_blank" rel="noopener">지도 열기 ↗</a>`;
@@ -398,10 +429,19 @@
         </div>`
       )
       .join('');
+    const mapcodeHint = needsMapcode(item)
+      ? `<div class="tip-row tip-row--hint">
+          <dt><span aria-hidden="true">🧭</span> 맵코드</dt>
+          <dd>아직 없음 — 렌터카 내비에 입력하면 정확해요.
+            <a class="tip-link" href="${mapcodeSearchUrl(item)}" target="_blank" rel="noopener">🔎 맵코드 검색</a>
+            <button type="button" class="tip-link tip-copy" data-tip="edit">입력하기</button></dd>
+        </div>`
+      : '';
     const age = daysSince(tip.updatedAt);
     const stale = age > STALE_DAYS;
     $('tipView').innerHTML = `
-      <dl class="tip-list">${rows}</dl>
+      <dl class="tip-list">${rows}${mapcodeHint}</dl>
+      ${parkingSpotsHtml(tip.parkingSpots)}
       <div class="tip-foot${stale ? ' is-stale' : ''}">
         <p>정보 확인일 <strong>${tip.updatedAt}</strong> (${age <= 0 ? '오늘' : `${age}일 전`})${
           tip.source === 'demo' ? ' · 샘플 정보' : ''
@@ -413,6 +453,68 @@
       </div>`;
   }
 
+  function parkingSpotsHtml(spots) {
+    if (!spots?.length) return '';
+    return `
+      <section class="spots" aria-label="대체 주차장">
+        <h3 class="spots__title">🅿️ 대체 주차장 <small>만차일 때 · ${spots.length}곳</small></h3>
+        <ol class="spots__list">
+          ${spots
+            .map(
+              (p) => `
+            <li class="spot">
+              <div class="spot__head">
+                <strong class="spot__name">${escapeHtml(p.name)}</strong>
+                <span class="spot__badge${p.is24h ? '' : ' is-off'}">${p.is24h ? '24시간' : '24시간 아님'}</span>
+              </div>
+              ${p.maxFee ? `<p class="spot__line"><b>최대요금</b> ${escapeHtml(p.maxFee)}</p>` : ''}
+              ${p.fee ? `<p class="spot__line"><b>요금</b> ${escapeHtml(p.fee)}</p>` : ''}
+              <a class="btn-sm spot__map" href="${escapeHtml(isHttp(p.mapUrl) ? p.mapUrl : gmapSearch(p.name))}"
+                target="_blank" rel="noopener">구글 지도 ↗</a>
+            </li>`
+            )
+            .join('')}
+        </ol>
+      </section>`;
+  }
+
+  function spotRowHtml(p = {}, i) {
+    return `
+      <div class="spot-edit" data-spot>
+        <div class="spot-edit__top">
+          <span class="spot-edit__no">${i + 1}</span>
+          <input type="text" data-k="name" value="${escapeHtml(p.name ?? '')}" placeholder="주차장 이름" aria-label="주차장 이름" />
+          <label class="spot-edit__24"><input type="checkbox" data-k="is24h" ${p.is24h ? 'checked' : ''} /> 24시간</label>
+          <button type="button" class="icon-btn" data-spot-remove aria-label="주차장 삭제">✕</button>
+        </div>
+        <label class="spot-edit__f"><span>최대요금</span><input type="text" data-k="maxFee" value="${escapeHtml(p.maxFee ?? '')}" placeholder="예: 24시간 최대 ¥800" /></label>
+        <label class="spot-edit__f"><span>요금</span><input type="text" data-k="fee" value="${escapeHtml(p.fee ?? '')}" placeholder="예: 30분 ¥100" /></label>
+        <label class="spot-edit__f"><span>지도</span><input type="url" data-k="mapUrl" value="${escapeHtml(p.mapUrl ?? '')}" placeholder="구글 지도 링크 (비우면 이름으로 검색)" /></label>
+      </div>`;
+  }
+
+  function readSpots() {
+    return [...$('tipFields').querySelectorAll('[data-spot]')].map((row) => {
+      const v = (k) => row.querySelector(`[data-k="${k}"]`);
+      return {
+        name: v('name').value.trim(),
+        is24h: v('is24h').checked,
+        maxFee: v('maxFee').value.trim(),
+        fee: v('fee').value.trim(),
+        mapUrl: v('mapUrl').value.trim(),
+      };
+    });
+  }
+
+  function renderSpotEditor(spots) {
+    const max = window.MAX_PARKING_SPOTS;
+    $('spotEditor').innerHTML =
+      spots.map(spotRowHtml).join('') +
+      (spots.length < max
+        ? `<button type="button" class="btn btn--ghost spot-add" data-spot-add>+ 주차장 추가 (${spots.length}/${max})</button>`
+        : `<p class="muted">최대 ${max}곳까지 등록할 수 있습니다.</p>`);
+  }
+
   function renderTipForm() {
     const tip = tipItem().tip || {};
     $('tipFields').innerHTML = window.TIP_FIELDS.map((f) => {
@@ -421,8 +523,17 @@
       const input = TIP_SINGLE_LINE.includes(f.key)
         ? `<input type="text" id="${id}" name="${f.key}" value="${value}" placeholder="${TIP_PLACEHOLDERS[f.key]}" />`
         : `<textarea id="${id}" name="${f.key}" rows="${f.key === 'tips' ? 3 : 1}" placeholder="${TIP_PLACEHOLDERS[f.key]}">${value}</textarea>`;
-      return `<label class="field"><span class="field__label">${f.icon} ${f.label}</span>${input}</label>`;
-    }).join('');
+      const extra =
+        f.key === 'mapcode'
+          ? `<a class="tip-link" href="${mapcodeSearchUrl(tipItem())}" target="_blank" rel="noopener">🔎 맵코드 검색</a>`
+          : '';
+      return `<label class="field"><span class="field__label">${f.icon} ${f.label} ${extra}</span>${input}</label>`;
+    }).join('') +
+      `<fieldset class="field spot-fieldset">
+        <legend class="field__label">🅿️ 대체 주차장 (최대 ${window.MAX_PARKING_SPOTS}곳 · 구글 지도 링크)</legend>
+        <div id="spotEditor"></div>
+      </fieldset>`;
+    renderSpotEditor(tip.parkingSpots ? tip.parkingSpots.map((p) => ({ ...p })) : []);
     $('tipFields').querySelectorAll('textarea').forEach(autosize);
   }
 
@@ -461,6 +572,11 @@
       const v = $(`tip-${f.key}`).value.trim();
       if (v) tip[f.key] = v;
     });
+    const spots = readSpots()
+      .filter((p) => p.name || p.mapUrl)
+      .slice(0, window.MAX_PARKING_SPOTS)
+      .map((p) => ({ ...p, name: p.name || '주차장', mapUrl: isHttp(p.mapUrl) ? p.mapUrl : '' }));
+    if (spots.length) tip.parkingSpots = spots;
     if (!hasTip(tip)) {
       // 모든 칸을 비우고 저장하면 삭제로 처리
       if (hasTip(item.tip)) deleteTip(false);
@@ -493,10 +609,28 @@
     $('btnTipCancel').addEventListener('click', () => setTipMode('view'));
     $('tipForm').addEventListener('submit', onTipSubmit);
     $('tipFields').addEventListener('input', (e) => e.target.matches('textarea') && autosize(e.target));
+    $('tipFields').addEventListener('click', (e) => {
+      if (e.target.closest('[data-spot-add]')) {
+        renderSpotEditor([...readSpots(), { is24h: true }]);
+        $('spotEditor').querySelector('[data-spot]:last-of-type [data-k="name"]')?.focus();
+      }
+      const remove = e.target.closest('[data-spot-remove]');
+      if (remove) {
+        const rows = [...$('spotEditor').querySelectorAll('[data-spot]')];
+        renderSpotEditor(readSpots().filter((_, i) => i !== rows.indexOf(remove.closest('[data-spot]'))));
+      }
+    });
     dialog.addEventListener('click', (e) => {
       if (e.target === dialog || e.target.closest('[data-close]')) return dialog.close();
       const action = e.target.closest('[data-tip]')?.dataset.tip;
       if (action === 'edit') setTipMode('edit');
+      if (action === 'copy') {
+        const value = e.target.closest('[data-value]').dataset.value;
+        navigator.clipboard?.writeText(value).then(
+          () => toast(`맵코드 ${value} 를 복사했습니다.`),
+          () => toast('복사하지 못했습니다. 길게 눌러 직접 복사해주세요.')
+        );
+      }
       if (action === 'verify') {
         tipItem().tip.updatedAt = today();
         save();
