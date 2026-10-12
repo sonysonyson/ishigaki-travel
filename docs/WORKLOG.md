@@ -9,7 +9,10 @@
   - headless Chrome 으로 1280px / 375px 렌더링 확인
 - [x] 이시가키 실제 일정 + 추천 일정(10/31, 11/03, 투어 후 일정, 끼니별 식사, 11/03 별·은하수 나이트 투어) 샘플 데이터 반영 — `recommended` 플래그로 "추천" 태그 표시
 - [x] git 로컬 저장소 초기화 및 첫 커밋 (branch: main)
-- [ ] GitHub 'ishigaki-travel' 레포 생성 + push + Pages 활성화 (gh CLI/자격증명 없음 → 사용자 조치 필요)
+- [x] GitHub 'ishigaki-travel' 레포 push + Pages 배포 (사용자 확인 완료)
+- [x] 디자인 개편: 파스텔 바다 톤(하늘→바다 그라데이션 헤더 + 물결 SVG, 모래빛 배경, 글래스 카드, 둥근 체크박스, Pretendard 폰트), 로고 🌺 → 만타 가오리 SVG(파비콘 포함)
+- [x] 저장 검증(headless Chrome+CDP): 신규 등록·수정·완료 체크가 새로고침 및 브라우저 재실행 후에도 유지됨 확인. 마지막으로 보던 Day 도 복원(`travel-planner:ishigaki:day`)
+- [ ] 디자인 개편분 push (사용자 확인 후)
 
 ### 결정/메모
 - 원본 10/31 항공편 표기 "이시가키→인천"은 출발편이므로 "인천→이시가키"로, 11/04는 "이시가키→인천"으로 정정 반영

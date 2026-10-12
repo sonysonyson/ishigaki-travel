@@ -2,11 +2,12 @@
   'use strict';
 
   const STORAGE_KEY = 'travel-planner:ishigaki';
+  const DAY_KEY = 'travel-planner:ishigaki:day'; // 마지막으로 보던 Day (새로고침 시 복원)
   const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
   const $ = (id) => document.getElementById(id);
 
   let plan = load();
-  let currentDay = 1;
+  let currentDay = loadDay();
   let selectedCategory = 'TOUR';
 
   // ---------- 상태 저장 ----------
@@ -20,8 +21,18 @@
     return window.createDemoPlan();
   }
 
+  function loadDay() {
+    const day = Number(localStorage.getItem(DAY_KEY));
+    return day >= 1 && day <= plan.totalDays ? day : 1;
+  }
+
   function save() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(plan));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(plan));
+      localStorage.setItem(DAY_KEY, String(currentDay));
+    } catch (e) {
+      toast('저장에 실패했습니다. 브라우저 저장소 설정을 확인해주세요.');
+    }
   }
 
   // ---------- 날짜/포맷 유틸 ----------
@@ -95,6 +106,7 @@
       btn.innerHTML = `Day ${day} <small>(${shortDate(dateOfDay(day))})</small>`;
       btn.addEventListener('click', () => {
         currentDay = day;
+        save();
         resetForm();
         render();
       });
@@ -358,6 +370,7 @@
       const go = e.target.closest('[data-goto]');
       if (go) {
         currentDay = Number(go.dataset.goto);
+        save();
         dialog.close();
         resetForm();
         render();
