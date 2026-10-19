@@ -16,6 +16,17 @@
     ],
   };
 
+  // 샘플 일정 구성 변경 이력 (data.js 의 DEMO_PLAN_REV). 저장 데이터에 순서대로 적용
+  // remove: 삭제할 샘플 일정 / reschedule: 날짜·시간·메모를 새 샘플 값으로 옮김 / add: 새 샘플 일정 추가
+  const DEMO_PLAN_MIGRATIONS = {
+    // 2026-10-19 이리오모테 투어 전면 취소 → 3일차 해변 스노클·관광, 4일차 동선 재조정
+    2: {
+      remove: ['demo-14', 'demo-15', 'demo-16', 'demo-17', 'demo-18'],
+      reschedule: ['demo-19', 'demo-20', 'demo-21', 'demo-22', 'demo-23', 'demo-24', 'demo-25'],
+      add: ['demo-38', 'demo-39', 'demo-40', 'demo-41', 'demo-42', 'demo-43', 'demo-44', 'demo-45'],
+    },
+  };
+
   let plan = load();
   let currentDay = loadDay();
   let selectedCategory = 'TOUR';
@@ -29,7 +40,26 @@
       /* 손상된 데이터는 샘플로 대체 */
     }
     // 동기화 오류가 저장 데이터를 샘플로 덮어쓰지 않도록 try 밖에서 처리
-    return saved && Array.isArray(saved.schedules) ? syncDemoTips(saved) : window.createDemoPlan();
+    return saved && Array.isArray(saved.schedules) ? syncDemoTips(migrateDemoPlan(saved)) : window.createDemoPlan();
+  }
+
+  // 샘플 일정 구성 변경 반영: 완료 체크·직접 수정한 TIP·사용자 추가 일정은 보존
+  function migrateDemoPlan(saved) {
+    if (saved.id !== 'ishigaki-2026') return saved;
+    const demo = new Map(window.createDemoPlan().schedules.map((s) => [s.id, s]));
+    for (let rev = (saved.demoRev || 1) + 1; rev <= window.DEMO_PLAN_REV; rev++) {
+      const m = DEMO_PLAN_MIGRATIONS[rev];
+      if (!m) continue;
+      saved.schedules = saved.schedules.filter((s) => !m.remove.includes(s.id));
+      saved.schedules.forEach((s) => {
+        const d = demo.get(s.id);
+        if (d && m.reschedule.includes(s.id)) Object.assign(s, { day: d.day, time: d.time, memo: d.memo });
+      });
+      const ids = new Set(saved.schedules.map((s) => s.id));
+      m.add.forEach((id) => !ids.has(id) && demo.has(id) && saved.schedules.push(demo.get(id)));
+    }
+    saved.demoRev = window.DEMO_PLAN_REV;
+    return saved;
   }
 
   // 샘플 TIP 최신화: 사용자가 직접 수정·삭제하지 않은 샘플 TIP 은 data.js 의 최신 내용으로 교체
