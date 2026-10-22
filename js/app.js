@@ -17,13 +17,25 @@
   };
 
   // 샘플 일정 구성 변경 이력 (data.js 의 DEMO_PLAN_REV). 저장 데이터에 순서대로 적용
-  // remove: 삭제할 샘플 일정 / reschedule: 날짜·시간·메모를 새 샘플 값으로 옮김 / add: 새 샘플 일정 추가
+  // remove: 삭제할 샘플 일정 / reschedule: 날짜·시간·제목·메모 등을 새 샘플 값으로 옮김 / add: 새 샘플 일정 추가
   const DEMO_PLAN_MIGRATIONS = {
     // 2026-10-19 이리오모테 투어 전면 취소 → 3일차 해변 스노클·관광, 4일차 동선 재조정
     2: {
       remove: ['demo-14', 'demo-15', 'demo-16', 'demo-17', 'demo-18'],
       reschedule: ['demo-19', 'demo-20', 'demo-21', 'demo-22', 'demo-23', 'demo-24', 'demo-25'],
       add: ['demo-38', 'demo-39', 'demo-40', 'demo-41', 'demo-42', 'demo-43', 'demo-44', 'demo-45'],
+    },
+    // 2026-10-22 3일차 오전 다케토미지마 + 오후 하마지마·오사키 스노클 투어, 4일차 서→북→동 일주로 재편
+    3: {
+      remove: ['demo-23', 'demo-42', 'demo-43', 'demo-45'],
+      reschedule: [
+        'demo-19', 'demo-20', 'demo-21', 'demo-22', 'demo-24', 'demo-25', 'demo-26', 'demo-27',
+        'demo-38', 'demo-39', 'demo-40', 'demo-41', 'demo-44',
+      ],
+      add: [
+        'demo-46', 'demo-47', 'demo-48', 'demo-49', 'demo-50', 'demo-51', 'demo-52',
+        'demo-53', 'demo-54', 'demo-55', 'demo-56', 'demo-57', 'demo-58',
+      ],
     },
   };
 
@@ -53,7 +65,9 @@
       saved.schedules = saved.schedules.filter((s) => !m.remove.includes(s.id));
       saved.schedules.forEach((s) => {
         const d = demo.get(s.id);
-        if (d && m.reschedule.includes(s.id)) Object.assign(s, { day: d.day, time: d.time, memo: d.memo });
+        if (!d || !m.reschedule.includes(s.id)) return;
+        const { day, time, title, category, memo, recommended } = d;
+        Object.assign(s, { day, time, title, category, memo, recommended });
       });
       const ids = new Set(saved.schedules.map((s) => s.id));
       m.add.forEach((id) => !ids.has(id) && demo.has(id) && saved.schedules.push(demo.get(id)));

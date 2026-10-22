@@ -1,0 +1,2 @@
+# 줄바꿈을 LF 로 고정 (Windows core.autocrlf=true 의 CRLF 변환 경고 방지)
+* text=auto eol=lf
