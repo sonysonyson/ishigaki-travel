@@ -37,6 +37,14 @@
         'demo-53', 'demo-54', 'demo-55', 'demo-56', 'demo-57', 'demo-58',
       ],
     },
+    // 2026-10-26 1일차 렌터카 14:00·돈키호테·히토시 이시간토점 웨이팅(A/B안), 2일차 MARU 예약, 3일차 버거, 4일차 히토시 A/B안
+    4: {
+      remove: ['demo-6'],
+      reschedule: [
+        'demo-2', 'demo-3', 'demo-4', 'demo-5', 'demo-7', 'demo-12', 'demo-13', 'demo-20', 'demo-27', 'demo-28',
+      ],
+      add: ['demo-59', 'demo-60', 'demo-61'],
+    },
   };
 
   let plan = load();
