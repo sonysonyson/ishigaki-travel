@@ -45,6 +45,12 @@
       ],
       add: ['demo-59', 'demo-60', 'demo-61'],
     },
+    // 2026-10-26 1일차 A안(맥스밸류→후사키 일몰→BRASINHA) / B안(이시간토점 바로 식사→후사키 일몰→맥스밸류→늦은 저녁)
+    5: {
+      remove: [],
+      reschedule: ['demo-5', 'demo-7', 'demo-60'],
+      add: ['demo-6', 'demo-62', 'demo-63', 'demo-64'],
+    },
   };
 
   let plan = load();
